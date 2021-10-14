@@ -28,7 +28,7 @@
 			<param-value>xFihj7qxhw</param-value>
 		</init-param>
 		<init-param>
-			<param-name>NaverCallbackUrl</param-name>
+			<param-name>NaverCallbackURL</param-name>
 			<param-value>http://localhost:8080/LoginSns2/naverlogin</param-value>
 		</init-param>
 	</filter>
