@@ -1,10 +1,13 @@
 package com.snslogin;
 
 import java.util.HashMap;
+import java.net.URLEncoder;
 
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpSession;
 import javax.servlet.FilterConfig;
-import java.net.URLEncoder;
+
+
 
 public class NaverLogin extends SocialLogin {
 	
@@ -29,6 +32,9 @@ public class NaverLogin extends SocialLogin {
 	@Override
 	public String getCodeURL(HttpServletRequest request) {
 		long state = System.currentTimeMillis();
+		
+		HttpSession session = request.getSession();
+		session.setAttribute("state", state);
 		
 		StringBuilder sb = new StringBuilder();
 		sb.append("https://nid.naver.com/oauth2.0/authorize?");
