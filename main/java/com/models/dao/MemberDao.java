@@ -10,6 +10,7 @@ import com.exception.*;
 import org.mindrot.jbcrypt.*;
 
 import com.models.dto.Member;
+import com.snslogin.*;
 
 /**
  * 회원 Model
@@ -65,18 +66,30 @@ public class MemberDao {
 		// 입력 데이터 검증
 		checkJoinData(request);
 		
-		String sql = "INSERT INTO member (memId, memPw, memNm) VALUES(?,?,?)";
+		SocialLogin naver = new NaverLogin();
+		Member socialMember = naver.getSocialUserInfo(request);
+		
+		String sql = "INSERT INTO member (memId, memPw, memNm, socialChannel, socialId) VALUES(?,?,?,?,?)";
 		try (Connection conn = DB.getConnection();
 			PreparedStatement pstmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
 			String memId = request.getParameter("memId");
 			String memPw = request.getParameter("memPw");
 			String memNm = request.getParameter("memNm");
+			String socialChannel = "none";
+			String socialId = null;
 			
-			String hash = BCrypt.hashpw(memPw, BCrypt.gensalt(10));
-			
+			String hash = "";
+			if (socialMember == null) {
+				hash = BCrypt.hashpw(memPw, BCrypt.gensalt(10));
+			} else { // 소셜 회원 가입, socialChannel, socialId를 각 채널에 해당하는 값
+				socialChannel = socialMember.getSocialChannel();
+				socialId = socialMember.getSocialId();
+			}
 			pstmt.setString(1, memId);
 			pstmt.setString(2, hash);
 			pstmt.setString(3, memNm);
+			pstmt.setString(4, socialChannel);
+			pstmt.setString(5, socialId);
 			
 			int result = pstmt.executeUpdate();
 			if (result < 1) 
@@ -89,6 +102,10 @@ public class MemberDao {
 			}
 			rs.close();
 			*/
+			if (socialMember != null) { // 소셜 회원 가입 경우 -> 로그인
+				naver.login(request);
+			}
+			
 			return true;
 			
 		} catch (SQLException | ClassNotFoundException e) {
@@ -111,14 +128,25 @@ public class MemberDao {
 		 * 3. 아이디 중복 여부 체크(O)
 		 * 4. 비밀번호 확인시 일치 여부  
 		 */
-		/** 필수 항목 체크 S */
-		String[] required = {
-			"memId//아이디를 입력하세요",
-			"memPw//비밀번호를 입력하세요",
-			"memPwRe//비밀번호를 확인해 주세요",
-			"memNm//회원명을 입력하세요"
-		};
+		SocialLogin naver = new NaverLogin();
+		Member socialMember = naver.getSocialUserInfo(request);
 		
+		/** 필수 항목 체크 S */
+		String[] required = null;
+		
+		if (socialMember == null) { // 일반회원 
+			required = new String[]{
+				"memId//아이디를 입력하세요",
+				"memPw//비밀번호를 입력하세요",
+				"memPwRe//비밀번호를 확인해 주세요",
+				"memNm//회원명을 입력하세요"
+			};
+		} else { // 소셜 회원 가입 
+			required = new String[]{
+				"memId//아이디를 입력하세요",
+				"memNm//회원명을 입력하세요"
+			};
+		}
 		for (String s : required) {
 			String[] re = s.split("//");
 			
@@ -136,9 +164,12 @@ public class MemberDao {
 		/** 아이디 자리수 체크 E */
 		
 		/** 비밀번호 자리수 체크 S */
-		String memPw = request.getParameter("memPw").trim();
-		if (memPw.length() < 8) {
-			throw new AlertException("비밀번호는 8자리 이상 입력해 주세요.");
+		String memPw = null;
+		if (socialMember == null) {
+			memPw = request.getParameter("memPw").trim();
+			if (memPw.length() < 8) {
+				throw new AlertException("비밀번호는 8자리 이상 입력해 주세요.");
+			}
 		}
 		/** 비밀전호 자리수 체크 E */
 		
@@ -161,9 +192,11 @@ public class MemberDao {
 		/** 아이디 중복 여부 체크 E */
 		
 		/** 비밀번호 확인시 일치 여부 S */
-		String memPwRe = request.getParameter("memPwRe");
-		if (!memPw.equals(memPwRe)) {
-			throw new AlertException("비밀번호 확인을 다시한번 해 주세요.");
+		if (socialMember == null) {
+			String memPwRe = request.getParameter("memPwRe");
+			if (!memPw.equals(memPwRe)) {
+				throw new AlertException("비밀번호 확인을 다시한번 해 주세요.");
+			}
 		}
 		/** 비밀번호 확인시 일치 여부 E */
 	}
